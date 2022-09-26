@@ -1,4 +1,4 @@
-use image::{self, RgbImage, ImageBuffer, Rgb, DynamicImage, imageops::{index_colors, BiLevel}, GenericImageView, Pixel};
+use image::{self, RgbImage, ImageBuffer, Rgb, DynamicImage, imageops::{index_colors, BiLevel}, GenericImageView, Pixel, Rgba};
 use indicatif::ProgressBar;
 use pixelator::Mode;
 
@@ -25,53 +25,54 @@ pub fn create_next_image((width, height): (u32, u32)) -> ImageBuffer<Rgb<u8>, Ve
 #[derive(Clone)]
 pub struct Universe {
     pub cells: Vec<Vec<CellState>>,
-    pub image: ImageBuffer<Rgb<u8>, Vec<u8>>,
+    pub image: ImageBuffer<Rgba<u8>, Vec<u8>>,
 }
 
 
-pub fn step(frame: Vec<Vec<CellState>>, img: ImageBuffer<Rgb<u8>, Vec<u8>>, (width, height): (u32, u32)) -> Universe {
-    let mut next_img = create_next_image((width, height));
+pub fn step(frame: Vec<Vec<CellState>>, img: ImageBuffer<Rgba<u8>, Vec<u8>>, (width, height): (u32, u32)) -> Universe {
+    let decay = 4u8;
+    let mut next_img = img.clone();
     let mut next_frame = vec![vec!(CellState::Dead; width as usize); height as usize];
+
     for (y, row) in &mut frame.iter().enumerate() {
         for (x, cell) in row.iter().enumerate() {
             let n = neighbors((x as i16, y as i16), &frame);
             
             match cell {
                 &CellState::Alive if (n == 2) | (n == 3) => {
-                    let pix = img.get_pixel(x as u32, y as u32);
-                    //println!("({},{}) survives!", x, y);
                     next_frame[y][x] = CellState::Alive;
-                    next_img.put_pixel(x as u32, y as u32, *pix)
+                },
 
-                }
                 &CellState::Dead if n == 3 => {
-                    //println!("({},{}) begins life!", x, y);
                     let coords = neighbors_coords((x as i16, y as i16), &frame, (width, height));
-                    let (mut R, mut G, mut B) = (0u32, 0u32, 0u32);
+                    let (mut R, mut G, mut B, mut A) = (0u32, 0u32, 0u32, 0u32);
             
                     for coord in &coords {
-                        if let [r, g, b] = img.get_pixel(coord.0, coord.1).channels() {
+                        if let [r, g, b, a] = img.get_pixel(coord.0, coord.1).channels() {
                             R += *r as u32;
                             G += *g as u32;
                             B += *b as u32;
+                            A += *a as u32;
                         } else {
                             panic!()
                         }
  
                     }
-                    let avg_pix = Rgb([(R/4) as u8, (G/4) as u8, (B/4) as u8]);
+                    // make new colour mixed opaque pixel.  /4 as must be four total cells as 3 dead + self
+                    let avg_pix = Rgba([(R/4) as u8, (G/4) as u8, (B/4) as u8, (255) as u8]);
 
                     next_img.put_pixel(x as u32, y as u32, avg_pix);
                     next_frame[y][x] = CellState::Alive;
-
-
-
-
                 },
-    
-                _ => {  
-                    // do nothing, all die out as blank image used each time
-                },
+
+                _ => {  // reduces all remaining pixels' alpha value by decay
+                    let pix = next_img.get_pixel_mut(x as u32, y as u32);
+                    if let [_r, _g, _b, a] = pix.channels_mut() {
+                        if *a >= decay {
+                            *a -= decay;
+                        }
+                    }
+                }
             }
         }
     }
