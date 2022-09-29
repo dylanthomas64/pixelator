@@ -1,10 +1,11 @@
+use std::fs::File;
 use std::time::Duration;
 
-use image::{Frame, RgbaImage, Rgba};
+use image::{RgbaImage, Rgba};
 use image::{GenericImageView, RgbImage, ImageBuffer, Pixel, Rgb, DynamicImage, Luma};
 use image::imageops::colorops::{index_colors, BiLevel, ColorMap};
 
-use gif::{Decoder, Encoder};
+use gif::{Decoder, Encoder, Frame};
 use image::{ImageDecoder, AnimationDecoder};
 
 use pixelator::{pixelate, map_onto_whitespace, Mode};
@@ -21,7 +22,11 @@ use crate::conway::{neighbors, neighbors_coords, step, create_next_image, Univer
 
 fn main() {
 
-        begin_life();
+    begin_life(true, 50);
+
+
+    
+    //begin_life();
         //make_image();
 
 
@@ -32,14 +37,6 @@ fn main() {
 
 }
 
-fn make_gif() {
-    // Encode frames into a gif and save to a file
-    
-
-    //let mut file_out = File::open("out.gif")?;
-    //let mut encoder = Encoder::new();
-    //encoder.encode_frames(frames.into_iter());
-}
 
 fn blend(foreground: &mut ImageBuffer<Rgba<u8>, Vec<u8>>, background: ImageBuffer<Rgba<u8>, Vec<u8>>) -> &mut ImageBuffer<Rgba<u8>, Vec<u8>> {
     let (width, height) = foreground.dimensions();
@@ -55,11 +52,12 @@ fn blend(foreground: &mut ImageBuffer<Rgba<u8>, Vec<u8>>, background: ImageBuffe
     foreground
 }
 
-fn begin_life() {
+fn begin_life(gif: bool, iterations: u64) {
     
     println!("loading image...");
     let img = image::open("images/license.jpg").unwrap();
-    let img = pixelate(img, 100);
+   
+    let img = pixelate(img, 200);
     img.save("output/pixelated.png");
 
 
@@ -71,17 +69,48 @@ fn begin_life() {
     mapped.save("output/mapped.png");
     
     let cells = map_onto_cells(&img, &mode);
+
     let mut universe = Universe {
         cells: cells,
         image: img.into_rgba8(),
     };
 
-    //step_universe(universe, (width, height))
-    for x in 0..150 {
-        universe = step(universe.cells, universe.image, (width, height));
-        println!("saving image...");
-        universe.image.save(format!("output/life/{}.png", x));
+
+    if gif {
+        
+        // Create encoder
+        let mut image = File::create("output/life.gif").unwrap();
+        let mut encoder = gif::Encoder::new(&mut image, width as u16, height as u16, &[]).unwrap();
+        let mut image_copy: RgbaImage;
+        let bar = ProgressBar::new(iterations);
+
+        for x in 0..iterations {
+
+            image_copy = universe.image.clone();
+            let mut pixels = image_copy.into_raw();
+            let frame = gif::Frame::from_rgba(width as u16, height as u16, &mut *pixels);
+            
+            // Write frame to file
+            encoder.write_frame(&frame).unwrap();
+
+            universe = step(universe.cells, universe.image, (width, height));
+            bar.inc(1);
+
+            
+        }
+    println!("saving gif...");
+    //universe.image.save(format!("output/life.gif"));
+        
+
+    } else {
+        for x in 0..10 {
+            universe = step(universe.cells, universe.image, (width, height));
+            println!("saving image...");
+            universe.image.save(format!("output/life/{}.png", x));
+        }
     }
+    //step_universe(universe, (width, height))
+    
 
 }
 

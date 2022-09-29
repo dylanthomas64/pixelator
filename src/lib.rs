@@ -4,6 +4,12 @@ use num::{complex::Complex, integer::Roots};
 
 
 
+
+
+
+
+
+
 pub enum Mode {
     // lightest colours only 
     Light,
