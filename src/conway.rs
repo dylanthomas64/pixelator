@@ -29,8 +29,7 @@ pub struct Universe {
 }
 
 
-pub fn step(frame: Vec<Vec<CellState>>, img: ImageBuffer<Rgba<u8>, Vec<u8>>, (width, height): (u32, u32)) -> Universe {
-    let decay = 4u8;
+pub fn step(frame: Vec<Vec<CellState>>, img: &ImageBuffer<Rgba<u8>, Vec<u8>>, (width, height): (u32, u32), alpha_decay_per_step: u8) -> Universe {
     let mut next_img = img.clone();
     let mut next_frame = vec![vec!(CellState::Dead; width as usize); height as usize];
 
@@ -39,38 +38,61 @@ pub fn step(frame: Vec<Vec<CellState>>, img: ImageBuffer<Rgba<u8>, Vec<u8>>, (wi
             let n = neighbors((x as i16, y as i16), &frame);
             
             match cell {
+                // @ 2..=3?
                 &CellState::Alive if (n == 2) | (n == 3) => {
                     next_frame[y][x] = CellState::Alive;
                 },
 
                 &CellState::Dead if n == 3 => {
                     let coords = neighbors_coords((x as i16, y as i16), &frame, (width, height));
-                    let (mut R, mut G, mut B, mut A) = (0u32, 0u32, 0u32, 0u32);
-            
-                    for coord in &coords {
-                        if let [r, g, b, a] = img.get_pixel(coord.0, coord.1).channels() {
-                            R += *r as u32;
-                            G += *g as u32;
-                            B += *b as u32;
-                            A += *a as u32;
-                        } else {
-                            panic!()
+                    let blend = true;
+                    if blend {
+                        let mut blended_pixel = Rgba([0; 4]);
+                        for coord in &coords {
+                            blended_pixel.blend(img.get_pixel(coord.0, coord.1))
                         }
- 
-                    }
-                    // make new colour mixed opaque pixel.  /4 as must be four total cells as 3 dead + self
-                    let avg_pix = Rgba([(R/4) as u8, (G/4) as u8, (B/4) as u8, (255) as u8]);
 
-                    next_img.put_pixel(x as u32, y as u32, avg_pix);
-                    next_frame[y][x] = CellState::Alive;
+                        //does this work? To make opaque
+                        blended_pixel[3] = 255;
+                        next_img.put_pixel(x as u32, y as u32, blended_pixel);
+
+                    } else {
+                        let (mut R, mut G, mut B, mut A) = (0u32, 0u32, 0u32, 0u32);
+                        for coord in &coords {
+                            if let [r, g, b, a] = img.get_pixel(coord.0, coord.1).channels() {
+                                R += *r as u32;
+                                G += *g as u32;
+                                B += *b as u32;
+                                A += *a as u32;
+                            } else {
+                                panic!()
+                            }
+     
+                        }
+                        // make new colour mixed opaque pixel.  /4 as must be four total cells as 3 dead + self
+                        let avg_pix = Rgba([(R/4) as u8, (G/4) as u8, (B/4) as u8, (255) as u8]);
+    
+                        // turn each new life white for testing
+                        // let avg_pix = Rgba([(255) as u8, (255) as u8, (255) as u8, (0) as u8]);
+
+                        next_img.put_pixel(x as u32, y as u32, avg_pix);
+                    }
+                    
+                    next_frame[y][x] = CellState::Alive
                 },
 
                 _ => {  // reduces all remaining pixels' alpha value by decay
-                    let pix = next_img.get_pixel_mut(x as u32, y as u32);
+                    let mut pix = next_img.get_pixel_mut(x as u32, y as u32);
                     if let [_r, _g, _b, a] = pix.channels_mut() {
-                        if *a >= decay {
-                            *a -= decay;
+                        if *a >= alpha_decay_per_step {
+                            *a -= alpha_decay_per_step;
+                        } else {
+                            // immediately reduce to invisible if dead
+                            *a = 0;
+
                         }
+                        
+
                     }
                 }
             }

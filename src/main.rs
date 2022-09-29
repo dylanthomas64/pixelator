@@ -21,8 +21,25 @@ use crate::conway::{neighbors, neighbors_coords, step, create_next_image, Univer
 
 
 fn main() {
+    println!("opening image...");
+    let img = image::open("images/salamence.png").unwrap();
+    //let img = pixelate(img, 100);
 
-    begin_life(true, 50);
+
+
+    let slides = begin_life(img, 200, 28, Mode::Dark);
+
+    let mut blended: Vec<RgbImage> = Vec::new();
+    println!("drawing backdrop");
+    let bar = ProgressBar::new(slides.len() as u64);
+    for s in slides {
+        let new_img = create_background(s).to_rgb8();
+        blended.push(new_img);
+        bar.inc(1);
+    }
+
+    gif(blended, true);
+
 
 
     
@@ -38,32 +55,33 @@ fn main() {
 }
 
 
-fn blend(foreground: &mut ImageBuffer<Rgba<u8>, Vec<u8>>, background: ImageBuffer<Rgba<u8>, Vec<u8>>) -> &mut ImageBuffer<Rgba<u8>, Vec<u8>> {
+fn create_background(foreground: ImageBuffer<Rgba<u8>, Vec<u8>>) -> DynamicImage {
     let (width, height) = foreground.dimensions();
 
-    let composite: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+    let mut composite: ImageBuffer<Rgba<u8>, Vec<u8>> = foreground;
 
-    for (x, y, pix) in foreground.enumerate_pixels_mut() {
-        pix.blend(background.get_pixel(x, y))
+    for (x, y, pix) in composite.enumerate_pixels_mut() {
+        if let [r, g, b, a] = pix.channels() {
+             // blend alhpa values
+        pix.blend(&Rgba([255, 255, 255, 255-a]))
+        }
+       
     }
 
     // find a functional approach like this but actually works ?
     //let composite = foreground.pixels_mut().zip(background.pixels_mut()).map(|(pix_f, pix_b)| pix_f.blend(pix_b)).collect();
-    foreground
+    DynamicImage::from(composite)
 }
 
-fn begin_life(gif: bool, iterations: u64) {
+fn begin_life(img: DynamicImage, generations: u64, decay: u8, mode: Mode) -> Vec<RgbaImage> {
+    /// set decay 0-255, make equal to 2^n for smooth results. 32 is about right to witness pulsing
+    /// light mode creates life on lightest pixels, dark mode creates life on darkest pixels
+
+    println!("preparing first generation");
+
+    let mut slides: Vec<RgbaImage> = Vec::new();
     
-    println!("loading image...");
-    let img = image::open("images/license.jpg").unwrap();
-   
-    let img = pixelate(img, 200);
-    img.save("output/pixelated.png");
-
-
     let (width, height) = img.dimensions();
-
-    let mode = Mode::Dark;
 
     let mapped = map_onto_whitespace(&img, &mode);
     mapped.save("output/mapped.png");
@@ -75,42 +93,19 @@ fn begin_life(gif: bool, iterations: u64) {
         image: img.into_rgba8(),
     };
 
+    let bar = ProgressBar::new(generations);
 
-    if gif {
-        
-        // Create encoder
-        let mut image = File::create("output/life.gif").unwrap();
-        let mut encoder = gif::Encoder::new(&mut image, width as u16, height as u16, &[]).unwrap();
-        let mut image_copy: RgbaImage;
-        let bar = ProgressBar::new(iterations);
-
-        for x in 0..iterations {
-
-            image_copy = universe.image.clone();
-            let mut pixels = image_copy.into_raw();
-            let frame = gif::Frame::from_rgba(width as u16, height as u16, &mut *pixels);
-            
-            // Write frame to file
-            encoder.write_frame(&frame).unwrap();
-
-            universe = step(universe.cells, universe.image, (width, height));
+    println!("starting first generation...");
+        for x in 0..generations {
+            // try do it without clone...
+            universe = step(universe.cells, &universe.image, (width, height), decay);
+            let slide = universe.image.clone();
+            slides.push(slide);
             bar.inc(1);
 
-            
         }
-    println!("saving gif...");
-    //universe.image.save(format!("output/life.gif"));
-        
-
-    } else {
-        for x in 0..10 {
-            universe = step(universe.cells, universe.image, (width, height));
-            println!("saving image...");
-            universe.image.save(format!("output/life/{}.png", x));
-        }
-    }
     //step_universe(universe, (width, height))
-    
+    slides
 
 }
 
@@ -125,6 +120,44 @@ fn step_universe(universe: Universe, (width, height): (u32, u32)) {
 
 }
 */
+
+fn gif(slides: Vec<RgbImage>, speed: bool) {
+    
+        println!("creating gif...");
+  
+        let mut image = File::create("output/life.gif").unwrap();
+        let (width, height) = slides[0].dimensions();
+        let mut encoder = gif::Encoder::new(&mut image, width as u16, height as u16, &[]).unwrap();
+        let mut image_copy: RgbaImage;
+
+        let bar = ProgressBar::new(slides.len() as u64);
+
+        if speed {
+            for img in slides {
+
+                let mut pixels = img.into_raw();
+                let frame = gif::Frame::from_rgb_speed(width as u16, height as u16, &mut *pixels, 10);
+                
+                // Write frame to file
+                encoder.write_frame(&frame).unwrap();
+                bar.inc(1);
+            }
+
+        } else {
+            for img in slides {
+
+                let mut pixels = img.into_raw();
+                let frame = gif::Frame::from_rgb(width as u16, height as u16, &mut *pixels);
+                
+                // Write frame to file
+                encoder.write_frame(&frame).unwrap();
+                bar.inc(1);
+            }
+        }
+
+        
+    println!("saving gif...");
+}
 
 
 
@@ -187,9 +220,9 @@ fn ops() {
     img.save("output/test.png").unwrap();
 }
 
-fn make_image() {
+fn make_image((width, height): (u32, u32)) -> RgbaImage {
     // Construct a new RGB ImageBuffer with the specified width and height.
-    let mut img: RgbaImage = ImageBuffer::new(512, 512);
+    let mut img: RgbaImage = ImageBuffer::new(width, width);
 
     // Construct a new by repeated calls to the supplied closure.
     /*
@@ -202,29 +235,19 @@ fn make_image() {
     });  */
 
 
-    let (width, height) = img.dimensions();
-
     // access pixel at coordinates (100, 100)
     // let pixel = img[(100, 100)];
     // or use 'get_pixel' method from 'genericImage' trait
     // let pixel = *img.get_pixel(100, 100);
 
     // put pixel at coordinate
-    img.put_pixel(100, 100, Rgba([255u8, 255u8, 255u8, 255u8]));
+    //img.put_pixel(100, 100, Rgba([255u8, 255u8, 255u8, 255u8]));
 
     // iterate over all pixels in the image.
     for (x, y, pixel) in img.enumerate_pixels_mut() {
-        if x % 3 == 0 {
-            *pixel = image::Rgba([255, 255, 255, 0]);
-        } else {
-            *pixel = image::Rgba([255, 0, 0, 0]);
-        }
-        
+        *pixel = image::Rgba([255, 255, 255, 255]);
     }
-
-
-
-    img.save("output/test.png").unwrap();
+    img
 }
 
 fn julia() {

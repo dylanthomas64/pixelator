@@ -96,10 +96,13 @@ pub fn map_onto_whitespace(img: &DynamicImage, mode: &Mode) -> DynamicImage {
 
 
 pub fn pixelate(img: DynamicImage, output_width: u32) -> DynamicImage {
+    println!("Pixelating...");
     let colour = img.color();
     let img = img.to_rgba8();
 
     let (width, height) = img.dimensions();
+    println!("width = {},  output_width = {}", width, output_width);
+
 
     // size of square subsections to average pixels
     let sub_image_width = width / output_width;
@@ -111,9 +114,9 @@ pub fn pixelate(img: DynamicImage, output_width: u32) -> DynamicImage {
 
     // crop to fit n equal large pixels
 
-    println!("Image Dimensions: {}x{}", width, height);
-    println!("SubImage size: {}x{}", sub_image_width, sub_image_width);
-    println!("Pixelated Image dimensions: {}x{}\n", output_width, output_height);
+    //println!("Image Dimensions: {}x{}", width, height);
+    //println!("SubImage size: {}x{}", sub_image_width, sub_image_width);
+    //println!("Pixelated Image dimensions: {}x{}\n", output_width, output_height);
     
 
 
@@ -139,7 +142,7 @@ pub fn pixelate(img: DynamicImage, output_width: u32) -> DynamicImage {
                 }
             }
 
-            let average_pixel = [(R/sub_image_area) as u8, (G/sub_image_area) as u8, (B/sub_image_area) as u8,  (100) as u8];
+            let average_pixel = [(R/sub_image_area) as u8, (G/sub_image_area) as u8, (B/sub_image_area) as u8,  (A/sub_image_area) as u8];
             //println!("avg rgb: {:?}", average_pixel);
     
     
@@ -155,7 +158,7 @@ pub fn pixelate(img: DynamicImage, output_width: u32) -> DynamicImage {
     
 
 
-    println!("{:?}", output_img.dimensions());
+    //println!("{:?}", output_img.dimensions());
     return DynamicImage::ImageRgba8(output_img)
 
 
