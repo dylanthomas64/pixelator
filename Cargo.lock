@@ -456,6 +456,7 @@ dependencies = [
 name = "pixelator"
 version = "0.1.0"
 dependencies = [
+ "gif",
  "image",
  "indicatif",
  "num",

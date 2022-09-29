@@ -1,8 +1,11 @@
 use std::time::Duration;
 
-use image::Frame;
+use image::{Frame, RgbaImage, Rgba};
 use image::{GenericImageView, RgbImage, ImageBuffer, Pixel, Rgb, DynamicImage, Luma};
 use image::imageops::colorops::{index_colors, BiLevel, ColorMap};
+
+use gif::{Decoder, Encoder};
+use image::{ImageDecoder, AnimationDecoder};
 
 use pixelator::{pixelate, map_onto_whitespace, Mode};
 use indicatif::ProgressBar;
@@ -18,13 +21,44 @@ use crate::conway::{neighbors, neighbors_coords, step, create_next_image, Univer
 
 fn main() {
 
+        begin_life();
+        //make_image();
+
+
+    //begin_life();
+
     
 
 
+}
 
+fn make_gif() {
+    // Encode frames into a gif and save to a file
+    
 
+    //let mut file_out = File::open("out.gif")?;
+    //let mut encoder = Encoder::new();
+    //encoder.encode_frames(frames.into_iter());
+}
+
+fn blend(foreground: &mut ImageBuffer<Rgba<u8>, Vec<u8>>, background: ImageBuffer<Rgba<u8>, Vec<u8>>) -> &mut ImageBuffer<Rgba<u8>, Vec<u8>> {
+    let (width, height) = foreground.dimensions();
+
+    let composite: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+
+    for (x, y, pix) in foreground.enumerate_pixels_mut() {
+        pix.blend(background.get_pixel(x, y))
+    }
+
+    // find a functional approach like this but actually works ?
+    //let composite = foreground.pixels_mut().zip(background.pixels_mut()).map(|(pix_f, pix_b)| pix_f.blend(pix_b)).collect();
+    foreground
+}
+
+fn begin_life() {
+    
     println!("loading image...");
-    let img = image::open("images/fungus.jpg").unwrap();
+    let img = image::open("images/license.jpg").unwrap();
     let img = pixelate(img, 100);
     img.save("output/pixelated.png");
 
@@ -39,20 +73,18 @@ fn main() {
     let cells = map_onto_cells(&img, &mode);
     let mut universe = Universe {
         cells: cells,
-        image: img.into_rgb8(),
+        image: img.into_rgba8(),
     };
 
     //step_universe(universe, (width, height))
-    for x in 0..50 {
+    for x in 0..150 {
         universe = step(universe.cells, universe.image, (width, height));
         println!("saving image...");
         universe.image.save(format!("output/life/{}.png", x));
     }
 
-    
-
-
 }
+
 
 /* 
 fn step_universe(universe: Universe, (width, height): (u32, u32)) {
@@ -128,7 +160,7 @@ fn ops() {
 
 fn make_image() {
     // Construct a new RGB ImageBuffer with the specified width and height.
-    let mut img: RgbImage = ImageBuffer::new(512, 512);
+    let mut img: RgbaImage = ImageBuffer::new(512, 512);
 
     // Construct a new by repeated calls to the supplied closure.
     /*
@@ -149,14 +181,14 @@ fn make_image() {
     // let pixel = *img.get_pixel(100, 100);
 
     // put pixel at coordinate
-    img.put_pixel(100, 100, Rgb([255u8, 255u8, 255u8]));
+    img.put_pixel(100, 100, Rgba([255u8, 255u8, 255u8, 255u8]));
 
     // iterate over all pixels in the image.
     for (x, y, pixel) in img.enumerate_pixels_mut() {
         if x % 3 == 0 {
-            *pixel = image::Rgb([255, 255, 255]);
+            *pixel = image::Rgba([255, 255, 255, 0]);
         } else {
-            *pixel = image::Rgb([255, 0, 0]);
+            *pixel = image::Rgba([255, 0, 0, 0]);
         }
         
     }

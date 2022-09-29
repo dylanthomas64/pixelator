@@ -1,4 +1,4 @@
-use image::{GenericImageView, RgbImage, ImageBuffer, Pixel, Rgb, DynamicImage, imageops::{BiLevel, index_colors, ColorMap}};
+use image::{GenericImageView, RgbImage, ImageBuffer, Pixel, Rgb, DynamicImage, imageops::{BiLevel, index_colors, ColorMap}, Rgba};
 use indicatif::ProgressBar;
 use num::{complex::Complex, integer::Roots};
 
@@ -90,13 +90,10 @@ pub fn map_onto_whitespace(img: &DynamicImage, mode: &Mode) -> DynamicImage {
 
 
 pub fn pixelate(img: DynamicImage, output_width: u32) -> DynamicImage {
-    let img = img.into_rgb8();
+    let colour = img.color();
+    let img = img.to_rgba8();
 
     let (width, height) = img.dimensions();
-
-    // fit(width, height)
-
-    println!("using output width = {}\n", output_width);
 
     // size of square subsections to average pixels
     let sub_image_width = width / output_width;
@@ -105,9 +102,6 @@ pub fn pixelate(img: DynamicImage, output_width: u32) -> DynamicImage {
     // calc height of output image
     let output_height = height / sub_image_width;
     let output_area = output_width * output_height;
-    
-
-
 
     // crop to fit n equal large pixels
 
@@ -119,7 +113,8 @@ pub fn pixelate(img: DynamicImage, output_width: u32) -> DynamicImage {
 
 
     // create new small image of sample size
-    let mut output_img: RgbImage = ImageBuffer::new(output_width, output_height);
+    let mut output_img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(output_width, output_height);
+
     let bar = ProgressBar::new(output_area.into());
 
     for y in 0..output_height {
@@ -128,21 +123,23 @@ pub fn pixelate(img: DynamicImage, output_width: u32) -> DynamicImage {
             let sub_img = img.view(x*sub_image_width, y*sub_image_width, sub_image_width, sub_image_width).to_image();
     
             
-            let (mut R, mut G, mut B) = (0u32, 0u32, 0u32);
+            let (mut R, mut G, mut B, mut A) = (0u32, 0u32, 0u32, 0u32);
             for pixel in sub_img.pixels() {
-                if let [r, g, b] = pixel.channels() {
+                if let [r, g, b, a] = pixel.channels() {
                     R += *r as u32;
                     G += *g as u32;
                     B += *b as u32;
+                    A += *a as u32;
                 }
             }
 
-            let average_pixel = [(R/sub_image_area) as u8, (G/sub_image_area) as u8, (B/sub_image_area) as u8];
+            let average_pixel = [(R/sub_image_area) as u8, (G/sub_image_area) as u8, (B/sub_image_area) as u8,  (100) as u8];
             //println!("avg rgb: {:?}", average_pixel);
     
     
             // paint average pixel of subimage into subimage location
-            output_img.put_pixel(x, y, Rgb(average_pixel));
+            output_img.put_pixel(x, y, Rgba(average_pixel));
+
 
             bar.inc(1)
 
@@ -152,8 +149,9 @@ pub fn pixelate(img: DynamicImage, output_width: u32) -> DynamicImage {
     
 
 
+    println!("{:?}", output_img.dimensions());
+    return DynamicImage::ImageRgba8(output_img)
 
-    DynamicImage::ImageRgb8(output_img)
 
 }
 
