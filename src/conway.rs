@@ -208,7 +208,7 @@ pub fn map_onto_cells(img: &DynamicImage, mode: &Mode) -> Vec<Vec<CellState>> {
 
         },
 
-        Mode::Dark | Mode::Monochrome => {
+        Mode::Dark => {
 
             for (x, y, pix) in palletised.enumerate_pixels_mut() {
                 let (x, y) = (x as usize, y as usize);

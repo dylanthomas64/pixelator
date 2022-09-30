@@ -1,4 +1,6 @@
-use std::fs::File;
+use std::fmt::Display;
+use std::fs::{File, self};
+use std::str::FromStr;
 use std::time::Duration;
 
 use image::{RgbaImage, Rgba};
@@ -30,79 +32,99 @@ struct Args {
     path: String,
 
     #[arg(short, long)]
-    /// output directory
-    output_path: String,
+    /// output directory. CWD if none given.
+    output_directory: Option<String>,
 
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t=100)]
     ///number of steps in the game of life
     generations: u64,
 
-    /// 0-255, how much the colours decay each step. Try 32
-    #[arg(short, long)]
+    /// 0-255, how much the colours decay each step. Deducts from alpha values each step.
+    #[arg(short, long, default_value_t=32)]
     decay: u8,
 
-    //#[arg(short, long)]
-    //mode: Mode,
-
-    /// set true for lossy but fast gif rendering
     #[arg(short, long)]
+    /// select "dark" or "light" mode for colour mapping options. Default = "random"
+    mode: Option<String>,
+
+    /// set true for faster lossy gif rendering
+    #[arg(short, long, default_value_t=false)]
     speed: bool,
 
-    /// output width dimension
+    /// output pixel width dimension using pixelation effect. Default is original image size.
+    /// smaller picture sizes result in exponentially faster renders.
     #[arg(short, long)]
-    width: u32,
+    width: Option<u32>,
 
 }
 
-fn run(random: bool) {
-    //let args = Args::parse();
-    //println!("path : {}", args.path);
 
+fn create_directory(path: &str) -> std::io::Result<()> {
+    fs::create_dir_all(path)?;
+    Ok(())
+}
 
-    let imagePath = "images/chippings.jpg";
-    let generations = 2000;
-    let decay = 32;
-    let mode = Mode::Dark;
-    // speedy gif making is lossy
-    let speed = false;
-    let reverse = true;
-    let output_width = 480;
-   //let random = true;
+fn main() {
+    let args = Args::parse();
+    println!("path : {}", args.path);
 
-    let mapping = if random {
-        "random"
-    } else {
-        "mapped"
+    let imagePath = args.path;
+
+    
+
+    let generations = args.generations;
+    let decay = args.decay;
+
+    let mode = match args.mode {
+        Some(modeString) => Mode::from_str(&modeString).expect("not a valid mode"),
+        // default = random
+        None => Mode::Random,
     };
+    
+    // speedy gif making is lossy
+    let speed = args.speed;
+    // let reverse = true;
+
 
     let s = imagePath.split(['/', '.']).collect::<Vec<&str>>();
     let fileName = s[s.len()-2];
     //println!("{:?}", fileName);
 
-    let newFileName = format!("{}x{}_{:?}_{}_{}_{}", fileName, output_width, mode, mapping, generations, decay);
+    //determine output width for file name
+    let output_width = match args.width {
+        Some(width) => width.to_string(),
+        none => "OG".to_string(),
+    };
+
+    let newFileName = format!("{}x{}_{}_{}_{}", fileName, output_width, mode.to_string(), generations, decay);
+
+    // if output path specified then create if it doesn't already exist
+    let output_path = if let Some(path) = args.output_directory {
+        create_directory(&path).expect("couldn't create path");
+        path + &newFileName
+    } else {
+        newFileName
+    };
+
+    
 
 
 
     println!("opening image...");
-    let img = image::open(imagePath).unwrap();
+    let mut img = image::open(imagePath).expect("failed to load image");
     
-    let img = pixelate(img, output_width);
-
-    /*
-    // print out types of pixelated versions if have perfect fit
-    let (width, height) = img.dimensions();
-    if let Some(v) = fit(width, height) {
-        for (x, y) in v {
-            pixelate(img.clone(), x).save(format!("output/pixelated{}.png", x));
-        }
+    if let Some(width) = args.width {
+        img = pixelate(img, width);
     }
-     */
+
+    /* 
+    let img = match args.width {
+        Some(width) => pixelate(img, width),
+        none => img
+    } */
     
 
-
-    
-
-    let slides = begin_life(img, generations, decay, &mode, random);
+    let slides = begin_life(img, generations, decay, &mode);
     //let slides_smooth = begin_life(img, generations, 2, &mode);
 
  
@@ -117,12 +139,7 @@ fn run(random: bool) {
         bar.inc(1);
     }
 
-    gif(blended, speed, &newFileName);
-}
-
-fn main() {
-    run(true);
-    run(false);
+    gif(blended, speed, &output_path);
     
 
 }
@@ -146,7 +163,7 @@ fn create_background(foreground: ImageBuffer<Rgba<u8>, Vec<u8>>) -> DynamicImage
     DynamicImage::from(composite)
 }
 
-fn begin_life(img: DynamicImage, generations: u64, decay: u8, mode: &Mode, random: bool) -> Vec<RgbaImage> {
+fn begin_life(img: DynamicImage, generations: u64, decay: u8, mode: &Mode) -> Vec<RgbaImage> {
     /// set decay 0-255, make equal to 2^n for smooth results. 32 is about right to witness pulsing
     /// light mode creates life on lightest pixels, dark mode creates life on darkest pixels
 
@@ -160,8 +177,8 @@ fn begin_life(img: DynamicImage, generations: u64, decay: u8, mode: &Mode, rando
     let mapped = map_onto_whitespace(&img, &mode);
     mapped.save("output/mapped.png");
     
-    let cells = match random {
-        true => {
+    let cells = match mode {
+        Mode::Random => {
             let mut cells = vec!(vec!(CellState::Dead; width as usize); height as usize);
             //create random life
             let mut rng = rand::thread_rng();
@@ -172,7 +189,7 @@ fn begin_life(img: DynamicImage, generations: u64, decay: u8, mode: &Mode, rando
             }
             cells
         },
-        false => {
+        _ => {
             let cells = map_onto_cells(&img, &mode);
             cells
         }
@@ -217,11 +234,11 @@ fn step_universe(universe: Universe, (width, height): (u32, u32)) {
 }
 */
 
-fn gif(slides: Vec<RgbImage>, speed: bool, file_name: &str) {
+fn gif(slides: Vec<RgbImage>, speed: bool, file_path: &str) {
     
         println!("creating gif...");
   
-        let mut image = File::create(format!("output/{}.gif", file_name)).unwrap();
+        let mut image = File::create(format!("{}.gif", file_path)).expect("couldn't save gif to path");
         let (width, height) = slides[0].dimensions();
         let mut encoder = gif::Encoder::new(&mut image, width as u16, height as u16, &[]).unwrap();
         let mut image_copy: RgbaImage;

@@ -1,3 +1,5 @@
+use std::{str::FromStr, num::ParseIntError, string::ParseError};
+
 use image::{GenericImageView, RgbImage, ImageBuffer, Pixel, Rgb, DynamicImage, imageops::{BiLevel, index_colors, ColorMap}, Rgba};
 use indicatif::ProgressBar;
 use num::{complex::Complex, integer::Roots};
@@ -9,15 +11,46 @@ use num::{complex::Complex, integer::Roots};
 
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Mode {
     // lightest colours only 
     Light,
     // darkest colours only
     Dark,
-    // monochrome
-    Monochrome,
+    // random,
+    Random
 }
+
+#[derive(Debug)]
+pub struct ParseModeError {    
+}
+
+
+
+impl FromStr for Mode {
+    type Err = ParseModeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.split_whitespace().collect::<String>().to_lowercase();
+        if (s ==  "dark") | (s == "d") { Ok(Mode::Dark) }
+        else if (s ==  "light") | (s == "l") { Ok(Mode::Light) }
+        else if (s ==  "random") | (s == "r") { Ok(Mode::Random) }
+        else {
+            return Err(ParseModeError {})
+        } 
+        
+    }
+ }
+
+ impl ToString for Mode {
+    fn to_string(&self) -> String {
+        match self {
+            Mode::Dark => "dark".to_string(),
+            Mode::Light => "light".to_string(),
+            Mode::Random => "random".to_string(),
+        }
+    }
+ }
+
 
 pub fn map_onto_whitespace(img: &DynamicImage, mode: &Mode) -> DynamicImage {
     println!("splitting image by luminance...");
