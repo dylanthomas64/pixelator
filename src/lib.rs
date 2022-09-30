@@ -9,7 +9,7 @@ use num::{complex::Complex, integer::Roots};
 
 
 
-
+#[derive(Debug)]
 pub enum Mode {
     // lightest colours only 
     Light,
@@ -165,7 +165,7 @@ pub fn pixelate(img: DynamicImage, output_width: u32) -> DynamicImage {
 }
 
 
-pub fn fit(width: u32, height: u32) -> Option<(u32, u32)> {
+pub fn fit(width: u32, height: u32) -> Option<Vec<(u32, u32)>> {
     // find if you can evenly split image into squares
     // find common multiples of width and height
     let mut cm: Vec<(u32, u32)> = Vec::new();
@@ -182,7 +182,7 @@ pub fn fit(width: u32, height: u32) -> Option<(u32, u32)> {
         None
     } else {
         println!("can squash perfectly into dimensions {:?}", cm);
-        cm.pop()
+        Some(cm)
         //println!("popped {:?}", new_dimensions);
         //let (width, height) = new_dimensions;
     }

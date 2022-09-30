@@ -8,7 +8,7 @@ use image::imageops::colorops::{index_colors, BiLevel, ColorMap};
 use gif::{Decoder, Encoder, Frame};
 use image::{ImageDecoder, AnimationDecoder};
 
-use pixelator::{pixelate, map_onto_whitespace, Mode};
+use pixelator::{pixelate, map_onto_whitespace, Mode, fit};
 use indicatif::ProgressBar;
 use num::{complex::Complex, integer::Roots};
 
@@ -16,18 +16,97 @@ mod conway;
 
 use conway::{map_onto_cells};
 
-use crate::conway::{neighbors, neighbors_coords, step, create_next_image, Universe};
+use crate::conway::{neighbors, neighbors_coords, step, create_next_image, Universe, CellState};
+
+use clap::Parser;
+
+use rand::Rng;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about= "does stuff", long_about = None)]
+struct Args {
+    #[arg(short, long)]
+    /// path to image
+    path: String,
+
+    #[arg(short, long)]
+    /// output directory
+    output_path: String,
+
+    #[arg(short, long)]
+    ///number of steps in the game of life
+    generations: u64,
+
+    /// 0-255, how much the colours decay each step. Try 32
+    #[arg(short, long)]
+    decay: u8,
+
+    //#[arg(short, long)]
+    //mode: Mode,
+
+    /// set true for lossy but fast gif rendering
+    #[arg(short, long)]
+    speed: bool,
+
+    /// output width dimension
+    #[arg(short, long)]
+    width: u32,
+
+}
+
+fn run(random: bool) {
+    //let args = Args::parse();
+    //println!("path : {}", args.path);
+
+
+    let imagePath = "images/chippings.jpg";
+    let generations = 2000;
+    let decay = 32;
+    let mode = Mode::Dark;
+    // speedy gif making is lossy
+    let speed = false;
+    let reverse = true;
+    let output_width = 480;
+   //let random = true;
+
+    let mapping = if random {
+        "random"
+    } else {
+        "mapped"
+    };
+
+    let s = imagePath.split(['/', '.']).collect::<Vec<&str>>();
+    let fileName = s[s.len()-2];
+    //println!("{:?}", fileName);
+
+    let newFileName = format!("{}x{}_{:?}_{}_{}_{}", fileName, output_width, mode, mapping, generations, decay);
 
 
 
-fn main() {
     println!("opening image...");
-    let img = image::open("images/salamence.png").unwrap();
-    //let img = pixelate(img, 100);
+    let img = image::open(imagePath).unwrap();
+    
+    let img = pixelate(img, output_width);
+
+    /*
+    // print out types of pixelated versions if have perfect fit
+    let (width, height) = img.dimensions();
+    if let Some(v) = fit(width, height) {
+        for (x, y) in v {
+            pixelate(img.clone(), x).save(format!("output/pixelated{}.png", x));
+        }
+    }
+     */
+    
 
 
+    
 
-    let slides = begin_life(img, 200, 28, Mode::Dark);
+    let slides = begin_life(img, generations, decay, &mode, random);
+    //let slides_smooth = begin_life(img, generations, 2, &mode);
+
+ 
+
 
     let mut blended: Vec<RgbImage> = Vec::new();
     println!("drawing backdrop");
@@ -38,19 +117,13 @@ fn main() {
         bar.inc(1);
     }
 
-    gif(blended, true);
+    gif(blended, speed, &newFileName);
+}
 
-
-
+fn main() {
+    run(true);
+    run(false);
     
-    //begin_life();
-        //make_image();
-
-
-    //begin_life();
-
-    
-
 
 }
 
@@ -63,7 +136,7 @@ fn create_background(foreground: ImageBuffer<Rgba<u8>, Vec<u8>>) -> DynamicImage
     for (x, y, pix) in composite.enumerate_pixels_mut() {
         if let [r, g, b, a] = pix.channels() {
              // blend alhpa values
-        pix.blend(&Rgba([255, 255, 255, 255-a]))
+        pix.blend(&Rgba([0, 0, 0, 255-a]))
         }
        
     }
@@ -73,7 +146,7 @@ fn create_background(foreground: ImageBuffer<Rgba<u8>, Vec<u8>>) -> DynamicImage
     DynamicImage::from(composite)
 }
 
-fn begin_life(img: DynamicImage, generations: u64, decay: u8, mode: Mode) -> Vec<RgbaImage> {
+fn begin_life(img: DynamicImage, generations: u64, decay: u8, mode: &Mode, random: bool) -> Vec<RgbaImage> {
     /// set decay 0-255, make equal to 2^n for smooth results. 32 is about right to witness pulsing
     /// light mode creates life on lightest pixels, dark mode creates life on darkest pixels
 
@@ -82,16 +155,39 @@ fn begin_life(img: DynamicImage, generations: u64, decay: u8, mode: Mode) -> Vec
     let mut slides: Vec<RgbaImage> = Vec::new();
     
     let (width, height) = img.dimensions();
+    let area = width * height;
 
     let mapped = map_onto_whitespace(&img, &mode);
     mapped.save("output/mapped.png");
     
-    let cells = map_onto_cells(&img, &mode);
+    let cells = match random {
+        true => {
+            let mut cells = vec!(vec!(CellState::Dead; width as usize); height as usize);
+            //create random life
+            let mut rng = rand::thread_rng();
+            for _n in 0..area {
+                let x = rng.gen_range(0..width);
+                let y = rng.gen_range(0..height);
+                cells[y as usize][x as usize] = CellState::Alive;
+            }
+            cells
+        },
+        false => {
+            let cells = map_onto_cells(&img, &mode);
+            cells
+        }
+    };
 
     let mut universe = Universe {
         cells: cells,
         image: img.into_rgba8(),
     };
+    
+
+    // start vector with a few original pixelated versions
+    for x in 0..5 {
+        slides.push(universe.image.clone());
+    }
 
     let bar = ProgressBar::new(generations);
 
@@ -121,14 +217,17 @@ fn step_universe(universe: Universe, (width, height): (u32, u32)) {
 }
 */
 
-fn gif(slides: Vec<RgbImage>, speed: bool) {
+fn gif(slides: Vec<RgbImage>, speed: bool, file_name: &str) {
     
         println!("creating gif...");
   
-        let mut image = File::create("output/life.gif").unwrap();
+        let mut image = File::create(format!("output/{}.gif", file_name)).unwrap();
         let (width, height) = slides[0].dimensions();
         let mut encoder = gif::Encoder::new(&mut image, width as u16, height as u16, &[]).unwrap();
         let mut image_copy: RgbaImage;
+
+        //let reverse: Vec<RgbImage> = slides.as_slice().reverse().collect();
+        //let slides_with_reverse = slides.push(reverse);
 
         let bar = ProgressBar::new(slides.len() as u64);
 
