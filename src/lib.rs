@@ -227,7 +227,7 @@ fn step_universe(universe: Universe, (width, height): (u32, u32)) {
 */
 
 pub fn make_gif(slides: Vec<RgbImage>, speed: bool, file_path: &str) {
-    println!("creating gif in {}", file_path);
+    println!("creating gif at {}.gif", file_path);
 
     let mut image = File::create(format!("{}.gif", file_path)).expect("couldn't save gif to path:");
     let (width, height) = slides[0].dimensions();
@@ -254,8 +254,6 @@ pub fn make_gif(slides: Vec<RgbImage>, speed: bool, file_path: &str) {
             bar.inc(1);
         }
     }
-
-    println!("saving gif...");
 }
 
 pub fn split() {
@@ -413,6 +411,24 @@ pub enum BackgroundColour {
     Custom((u8, u8, u8)),
 }
 
+// todo: implement better errors
+impl FromStr for BackgroundColour {
+    type Err = String;
+    // #0000FF;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.split_whitespace().collect::<String>().to_lowercase();
+        match s.as_str() {
+            "black" | "b" => Ok(Self::Black),
+            "white" | "w" => Ok(Self::White),
+            _ => {
+                let colour = hex_rgb::convert_hexcode_to_rgb(s)?;
+                let (r, g, b) = (colour.red, colour.green, colour.blue);
+                Ok(Self::Custom((r, g, b)))
+            }
+        }
+    }
+}
+
 impl Default for BackgroundColour {
     fn default() -> Self {
         BackgroundColour::Black
@@ -424,7 +440,7 @@ pub fn background_for_slides(
     colour: BackgroundColour,
 ) -> Vec<ImageBuffer<Rgb<u8>, Vec<u8>>> {
     let mut blended: Vec<RgbImage> = Vec::new();
-    println!("drawing backdrop");
+    println!("applying background");
     let bar = ProgressBar::new(slides.len() as u64);
     for s in slides {
         let new_img = create_background(s, &colour).to_rgb8();

@@ -30,8 +30,6 @@ pub fn begin_life(img: DynamicImage, generations: u64, decay: u8, mode: &Mode) -
     // set decay 0-255, make equal to 2^n for smooth results. 32 is about right to witness pulsing
     // light mode creates life on lightest pixels, dark mode creates life on darkest pixels
 
-    println!("preparing first generation");
-
     let mut slides: Vec<RgbaImage> = Vec::new();
 
     let (width, height) = img.dimensions();
@@ -67,7 +65,7 @@ pub fn begin_life(img: DynamicImage, generations: u64, decay: u8, mode: &Mode) -
 
     let bar = ProgressBar::new(generations);
 
-    println!("starting first generation...");
+    println!("starting the game of life...");
     for _ in 0..generations {
         // try do it without clone...
         universe = step(universe.cells, &universe.image, (width, height), decay);

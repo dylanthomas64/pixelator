@@ -15,38 +15,43 @@ struct Args {
     path: String,
 
     #[arg(short, long)]
-    /// output directory. CWD if none given.
+    /// Output directory. ./output/ if none given.
     output_directory: Option<String>,
 
     #[arg(short, long, default_value_t = 100)]
-    ///number of steps in the game of life
+    /// Number of steps in the game of life
     generations: u64,
 
-    /// 0-255, how much the colours decay each step. Deducts from alpha values each step.
     #[arg(short, long, default_value_t = 32)]
+    /// How much alpha values reduce each step.
     decay: u8,
 
+    #[arg(short, long, default_value = "b")]
+    /// "white"/"w", "black"/"b", "#RRGGBB"
+    background: String,
+
     #[arg(short, long)]
-    /// select "dark" or "light" mode for colour mapping options. Default = "random"
+    /// Select "dark" or "light" mode for colour mapping options. Default = "random"
     mode: Option<String>,
 
-    /// set true for faster lossy gif rendering
+    /// Set true for faster lossy gif rendering
     #[arg(short, long, default_value_t = false)]
     speed: bool,
 
-    /// output pixel width dimension using pixelation effect. Default is original image size.
-    /// smaller picture sizes result in exponentially faster renders.
+    /// Output pixel width dimension using pixelation effect. Default is original image size.
+    /// Smaller picture sizes result in exponentially faster renders.
     #[arg(short, long)]
     width: Option<u32>,
 }
 
 fn main() {
     let args = Args::parse();
-    println!("path : {}", args.path);
 
     let image_path = args.path;
     let generations = args.generations;
     let decay = args.decay;
+
+    let background: BackgroundColour = args.background.parse().unwrap();
 
     // parse mode input string
     let mode = match args.mode {
@@ -86,7 +91,7 @@ fn main() {
         "output".to_owned() + &new_file_name
     };
 
-    println!("opening image...");
+    println!("loading image...");
     let mut img = image::open(image_path).expect("failed to load image");
 
     if let Some(width) = args.width {
@@ -94,7 +99,7 @@ fn main() {
     }
 
     let slides = begin_life(img, generations, decay, &mode);
-    let blended = background_for_slides(slides, BackgroundColour::default());
+    let blended = background_for_slides(slides, background);
 
     make_gif(blended, speed, &output_path);
 }
