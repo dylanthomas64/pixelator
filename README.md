@@ -47,7 +47,7 @@ Options:
 
 ./target/release/pixelator -p "./images/jupiter.png" -o "./example_gifs/" -w 100
 
-https://github.com/dylanthomas64/pixelator/example_gifs/jupiterx100_random_100_32.gif
+https://github.com/dylanthomas64/pixelator/blob/6ba3b5edb9a824b05ca28d77ff4e7b253a5a282a/example_gifs/jupiterx100_random_100_32.gif
 
 
 ./target/release/pixelator -p "./images/shyguy.png" -o "./example_gifs/"
