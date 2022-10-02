@@ -1,8 +1,11 @@
 # pixelator
 turns an image into a gif of conway's game of life
 
+## Build
+$ cargo build --release
+
 ## Usage
-$ ./target/release/pixelator.exe --help
+$ ./target/release/pixelator --help
 
 Usage: pixelator.exe [OPTIONS] --path <PATH>
 
@@ -40,14 +43,17 @@ Options:
           
           
 ## Examples
-with pixelator/target/release in PATH
 
-pixelator -p "./images/jupiter.png"
 
-pixelator -p "./images/jupiter.png" -o "./test" -w 120 -g 500 -b "w"
+./pixelator -p "./images/jupiter.png"
 
-pixelator -p "./images/jupiter.png" -o "./test" -w 480 -g 20 -b "#1BEC84" -m "light"
+./pixelator -p "./images/jupiter.png" -o "./test" -w 120 -g 500 -b "w"
 
-pixelator -p "./images/beetroot.jpg" -w 560 -g 200 -b "black"
+./pixelator -p "./images/jupiter.png" -o "./test" -w 480 -g 20 -b "#1BEC84" -m "light"
+
+./pixelator -p "./images/beetroot.jpg" -w 560 -g 200 -b "black"
+
+./target/release/pixelator  /home/Dylan/Pictures/shyguy.png -o /home/dylan/Pictures/cgol
+
 
 
