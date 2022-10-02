@@ -45,13 +45,9 @@ Options:
 ## Examples
 
 
-./pixelator -p "./images/jupiter.png"
+./target/release/pixelator -p "./images/jupiter.png" -o "./example_gifs/" -w 100
 
-./pixelator -p "./images/jupiter.png" -o "./test" -w 120 -g 500 -b "w"
-
-./pixelator -p "./images/jupiter.png" -o "./test" -w 480 -g 20 -b "#1BEC84" -m "light"
-
-./pixelator -p "./images/beetroot.jpg" -w 560 -g 200 -b "black"
+./target/release/pixelator -p "./images/shyguy.png" -o "./example_gifs/" -g 50 -b "#1BEC84" -m "dark"
 
 ./target/release/pixelator  /home/Dylan/Pictures/shyguy.png -o /home/dylan/Pictures/cgol
 
