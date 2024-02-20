@@ -47,12 +47,24 @@ Options:
 
 ./target/release/pixelator -p "./images/jupiter.png" -o "./example_gifs/" -w 100
 
-https://github.com/dylanthomas64/pixelator/blob/6ba3b5edb9a824b05ca28d77ff4e7b253a5a282a/example_gifs/jupiterx100_random_100_32.gif
+![Alt Text](/example_gifs/jupiterx100_random_100_32.gif)
+
 
 
 ./target/release/pixelator -p "./images/shyguy.png" -o "./example_gifs/"
-  
-https://github.com/dylanthomas64/pixelator/blob/6ba3b5edb9a824b05ca28d77ff4e7b253a5a282a/example_gifs/shyguyxOG_random_100_32.gif
+
+![Alt Text](/example_gifs/shyguyxOG_random_100_32.gif)
+
+
+beetrootx560_random_200_32.gif
+
+![Alt Text](/example_gifs/beetrootx560_random_200_32.gif)
+
+
+beetrootxOG_random_100_32.gif
+
+![Alt Text](/example_gifs/beetrootxOG_random_100_32.gif)
+
 
 
 
